@@ -53,6 +53,9 @@ sequenceDiagram
 - [`chezmoi init --apply $YOUR_GITHUB_USERNAME`][init-command] clones your
   dotfiles from GitHub into the source directory and runs `chezmoi apply`.
 
+- [`chezmoi preview`][preview-command] shows the diff that `chezmoi update`
+  would apply, without pulling or modifying your dotfiles.
+
 - [`chezmoi update`][update-command] pulls the latest changes from your remote
   repo and runs `chezmoi apply`.
 
@@ -66,6 +69,7 @@ sequenceDiagram
     participant R as remote repo
     R->>W: chezmoi init $YOUR_GITHUB_USERNAME
     R->>H: chezmoi init --apply $YOUR_GITHUB_USERNAME
+    R-->>W: chezmoi preview
     R->>H: chezmoi update $YOUR_GITHUB_USERNAME
     W->>L: git commit
     L->>R: git push
@@ -96,5 +100,6 @@ sequenceDiagram
 [edit-command]: /reference/commands/edit.md
 [execute-template-command]: /reference/commands/execute-template.md
 [init-command]: /reference/commands/init.md
+[preview-command]: /reference/commands/preview.md
 [status-command]: /reference/commands/status.md
 [update-command]: /reference/commands/update.md

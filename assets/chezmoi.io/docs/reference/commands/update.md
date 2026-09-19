@@ -15,7 +15,8 @@ If `update.command` is set then chezmoi will run `update.command` with
 
     With `--dry-run`, chezmoi fetches from the remote and renders the changes
     against the fetched tree instead of pulling. The local branch does not
-    move. Combine `--dry-run` with `--verbose` to see the full diff.
+    move. Combine `--dry-run` with `--verbose` to see the full diff, or run
+    [`preview`][preview] as a shorthand for `update --dry-run --verbose`.
 
     We cannot fetch without updating the working tree  with `update.command`
     or `useBuiltinGit` so `--dry-run` skips and warns.
@@ -57,3 +58,5 @@ Update submodules recursively. This defaults to `true`. Can be disabled with `--
 ```sh
 chezmoi update
 ```
+
+[preview]: /reference/commands/preview.md

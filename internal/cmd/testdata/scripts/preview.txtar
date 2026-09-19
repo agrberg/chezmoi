@@ -1,0 +1,93 @@
+[!exec:git] skip 'git not found in $PATH'
+
+mkgitconfig
+mkhomedir golden
+mkhomedir
+
+exec git init --bare $WORK/dotfiles.git
+exec chezmoi init file://$WORK/dotfiles.git
+
+# create a commit
+exec chezmoi add $HOME${/}.file
+exec chezmoi git add dot_file
+exec chezmoi git commit -- --message 'Add dot_file'
+exec chezmoi git push
+
+chhome home2/user
+
+# test that chezmoi init --apply inits and applies
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+cmp $HOME/.file golden/.file
+
+chhome home/user
+
+# create and push a new commit
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi git -- add dot_file
+exec chezmoi git -- commit -m 'Update dot_file'
+exec chezmoi git -- push
+
+chhome home2/user
+
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout head-before-preview
+
+# test that chezmoi preview shows the incoming diff, exactly as
+# update --dry-run --verbose does, because preview is an alias for it
+exec chezmoi preview
+stdout '# edited'
+stderr '^chezmoi: would apply changes to 1 target$'
+
+# test that chezmoi preview did not move the local branch
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout head-after-preview
+cmp head-before-preview head-after-preview
+
+# test that chezmoi preview did not pull, so chezmoi update still has the
+# commit to apply
+exec chezmoi update
+grep -count=1 '# edited' $HOME/.file
+
+chhome home3/user
+
+# test that chezmoi preview fails cleanly when there is no upstream branch
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec chezmoi git -- checkout -b nobranch
+! exec chezmoi preview
+stderr 'no upstream branch configured'
+
+chhome home4/user
+
+# test that chezmoi preview warns and skips the pull under builtin git,
+# exactly as update --dry-run does, rather than refusing to run
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home4-head-before
+exec chezmoi preview --use-builtin-git=true
+stderr 'warning'
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home4-head-after
+cmp home4-head-before home4-head-after
+
+chhome home5/user
+
+# test that chezmoi preview warns and skips the pull when update.command is
+# set, exactly as update --dry-run does, rather than refusing to run
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home5-head-before
+exec chezmoi preview
+stderr 'warning'
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home5-head-after
+cmp home5-head-before home5-head-after
+
+-- golden/.file --
+# contents of .file
+-- home5/user/.config/chezmoi/chezmoi.toml --
+[update]
+    command = "true"
