@@ -7,7 +7,7 @@ cmp stdout golden/state-dump.yaml
 
 # test that chezmoi apply succeeds
 exec chezmoi apply
-! stderr .
+! stderr 'warning'
 
 # test that chezmoi apply prints a warning if the config file template has been changed
 cp golden/.chezmoi.toml.tmpl $CHEZMOISOURCEDIR/.chezmoi.toml.tmpl
@@ -18,7 +18,7 @@ stderr 'warning: config file template has changed'
 appendline $CHEZMOICONFIGDIR/chezmoi.toml '[warnings]'
 appendline $CHEZMOICONFIGDIR/chezmoi.toml '  configFileTemplateHasChanged = false'
 exec chezmoi apply
-! stderr .
+! stderr 'warning'
 cp golden/chezmoi.toml $CHEZMOICONFIGDIR
 
 # test that chezmoi init re-generates the config file
@@ -28,13 +28,13 @@ cmp $CHEZMOICONFIGDIR/chezmoi.toml golden/chezmoi.toml
 
 # test that chezmoi apply no longer prints a warning after the config file is regenerated
 exec chezmoi apply
-! stderr .
+! stderr 'warning'
 
 # test that chezmoi apply --force ignores config file changes and updates the state
 edit $CHEZMOISOURCEDIR/.chezmoi.toml.tmpl
 grep '# edited' $CHEZMOISOURCEDIR/.chezmoi.toml.tmpl
 exec chezmoi apply --force
-! stderr .
+! stderr 'warning'
 ! grep '# edited' $CHEZMOICONFIGDIR/chezmoi.toml
 
 chhome home2/user

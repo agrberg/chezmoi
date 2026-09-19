@@ -1,0 +1,74 @@
+# test that the summary uses the plural noun when more than one target
+# changes
+exec chezmoi apply
+stderr '^chezmoi: applied changes to 2 targets$'
+! stdout .
+cmp $HOME/.file $CHEZMOISOURCEDIR/dot_file
+cmp $HOME/.file2 $CHEZMOISOURCEDIR/dot_file2
+
+# a second apply with nothing to do reports that the destination is up to
+# date
+exec chezmoi apply
+stderr '^chezmoi: destination directory is up to date$'
+! stdout .
+
+# test that the summary uses the singular noun when exactly one target
+# changes
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi apply
+stderr '^chezmoi: applied changes to 1 target$'
+grep -count=1 '# edited' $HOME/.file
+
+# test that --dry-run reports what would be applied without writing to the
+# destination
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi apply --dry-run
+stderr '^chezmoi: would apply changes to 1 target$'
+grep -count=1 '# edited' $HOME/.file
+exec chezmoi apply
+stderr '^chezmoi: applied changes to 1 target$'
+grep -count=2 '# edited' $HOME/.file
+
+# test that a skipped conflict is reported as skipped, not as up to date
+appendline $HOME/.file 'LOCAL_DIRTY_EDIT'
+stdin golden/skip
+exec chezmoi apply --no-tty
+stderr '^chezmoi: skipped changes to 1 target$'
+! stderr 'destination directory is up to date'
+grep -count=1 'LOCAL_DIRTY_EDIT' $HOME/.file
+
+# test that --force overwrites the dirty target and still reports it as
+# applied
+exec chezmoi apply --force
+stderr '^chezmoi: applied changes to 1 target$'
+! grep 'LOCAL_DIRTY_EDIT' $HOME/.file
+
+# test that the summary uses the plural noun for skipped targets too
+appendline $HOME/.file 'LOCAL_DIRTY_EDIT_2'
+appendline $HOME/.file2 'LOCAL_DIRTY_EDIT_2'
+stdin golden/skip-skip
+exec chezmoi apply --no-tty
+stderr '^chezmoi: skipped changes to 2 targets$'
+grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file
+grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file2
+
+# test that quitting after overwriting one conflict still reports the
+# summary for what was applied before the quit
+stdin golden/overwrite-quit
+exec chezmoi apply --no-tty
+stderr '^chezmoi: applied changes to 1 target$'
+! grep 'LOCAL_DIRTY_EDIT_2' $HOME/.file
+grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file2
+
+-- golden/overwrite-quit --
+overwrite
+quit
+-- golden/skip --
+skip
+-- golden/skip-skip --
+skip
+skip
+-- home/user/.local/share/chezmoi/dot_file --
+# contents of .file
+-- home/user/.local/share/chezmoi/dot_file2 --
+# contents of .file2

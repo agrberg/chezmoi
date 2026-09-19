@@ -3,7 +3,7 @@
 # test that chezmoi apply --verbose does not display scripts that are run always, but does run them
 exec chezmoi apply --verbose
 cmp stdout golden/apply
-! stderr .
+! stderr 'warning'
 
 -- golden/apply --
 script

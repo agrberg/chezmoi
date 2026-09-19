@@ -1,0 +1,137 @@
+[!exec:git] skip 'git not found in $PATH'
+
+mkgitconfig
+mkhomedir
+
+exec git init --bare $WORK/dotfiles.git
+exec chezmoi init file://$WORK/dotfiles.git
+
+# create a commit in the author clone, including a second target file
+exec chezmoi add $HOME${/}.file
+cp golden/file2 $HOME/.file2
+exec chezmoi add $HOME${/}.file2
+exec chezmoi git add dot_file dot_file2
+exec chezmoi git commit -- --message 'Add dot_file and dot_file2'
+exec chezmoi git push
+
+# set up the consumer clone
+chhome home2/user
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+
+# the pull finds nothing and the apply changes nothing
+exec chezmoi update
+stderr '^chezmoi: destination directory is up to date$'
+! stderr 'chezmoi: applied changes'
+
+# push a new commit from the author clone
+chhome home/user
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi git -- add dot_file
+exec chezmoi git -- commit -m 'Update dot_file'
+exec chezmoi git -- push
+
+# the pull finds a commit and the apply changes the destination
+chhome home2/user
+exec chezmoi update
+stderr '^chezmoi: applied changes to 1 target$'
+grep -count=1 '# edited' $HOME/.file
+
+# push an empty commit from the author clone
+chhome home/user
+exec chezmoi git -- commit --allow-empty -m 'Empty commit'
+exec chezmoi git -- push
+
+# the pull finds a commit but the apply changes nothing
+chhome home2/user
+exec chezmoi update
+stderr '^chezmoi: destination directory is up to date$'
+! stderr 'chezmoi: applied changes'
+
+# push a second real commit from the author clone
+chhome home/user
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi git -- add dot_file
+exec chezmoi git -- commit -m 'Update dot_file again'
+exec chezmoi git -- push
+
+# --dry-run moves the local branch but writes nothing. This relies on the
+# known behavior of #3811. When fixed, replace this step with
+# `exec chezmoi git -- pull --autostash --rebase` to move the branch without
+# applying.
+chhome home2/user
+exec chezmoi update --dry-run
+stderr '^chezmoi: would apply changes to 1 target$'
+grep -count=1 '# edited' $HOME/.file
+
+# test a pull finding nothing still reports what the apply wrote. See #3811.
+exec chezmoi update
+stderr '^chezmoi: applied changes to 1 target$'
+grep -count=2 '# edited' $HOME/.file
+
+# push a commit that changes two targets from the author clone
+chhome home/user
+edit $CHEZMOISOURCEDIR/dot_file
+edit $CHEZMOISOURCEDIR/dot_file2
+exec chezmoi git -- add dot_file dot_file2
+exec chezmoi git -- commit -m 'Update dot_file and dot_file2'
+exec chezmoi git -- push
+
+# test that the summary uses the plural noun when more than one target
+# changes
+chhome home2/user
+exec chezmoi update
+stderr '^chezmoi: applied changes to 2 targets$'
+grep -count=3 '# edited' $HOME/.file
+grep -count=1 '# edited' $HOME/.file2
+
+# push another commit from the author clone
+chhome home/user
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi git -- add dot_file
+exec chezmoi git -- commit -m 'Update dot_file a fourth time'
+exec chezmoi git -- push
+
+# test that a skipped conflict is reported as skipped, not as up to date
+chhome home2/user
+appendline $HOME/.file 'LOCAL_DIRTY_EDIT'
+stdin golden/skip
+exec chezmoi update --no-tty
+stderr 'chezmoi: skipped changes to 1 target$'
+! stderr 'chezmoi: destination directory is up to date'
+grep -count=1 'LOCAL_DIRTY_EDIT' $HOME/.file
+
+# test that --force overwrites the dirty target and reports it as applied
+exec chezmoi update --force
+stderr '^chezmoi: applied changes to 1 target$'
+grep -count=4 '# edited' $HOME/.file
+! grep 'LOCAL_DIRTY_EDIT' $HOME/.file
+
+# test that the summary uses the plural noun for skipped targets too
+appendline $HOME/.file 'LOCAL_DIRTY_EDIT_2'
+appendline $HOME/.file2 'LOCAL_DIRTY_EDIT_2'
+stdin golden/skip-skip
+exec chezmoi update --no-tty
+stderr 'chezmoi: skipped changes to 2 targets$'
+grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file
+grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file2
+
+# test that quitting after overwriting one conflict still reports the
+# summary for what was applied before the quit
+stdin golden/overwrite-quit
+exec chezmoi update --no-tty
+stderr 'chezmoi: applied changes to 1 target$'
+grep -count=4 '# edited' $HOME/.file
+! grep 'LOCAL_DIRTY_EDIT_2' $HOME/.file
+grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file2
+
+-- golden/file2 --
+# contents of .file2
+-- golden/overwrite-quit --
+overwrite
+quit
+-- golden/skip --
+skip
+-- golden/skip-skip --
+skip
+skip

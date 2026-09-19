@@ -7,6 +7,12 @@ If `update.command` is set then chezmoi will run `update.command` with
 --autostash --rebase [--recurse-submodules]` , using chezmoi's builtin git if
 `useBuiltinGit` is `true` or if `git.command` cannot be found in `$PATH`.
 
+!!! note
+
+    Like `apply`, chezmoi reports the effect on the destination directory: how
+    many targets changed, how many were skipped, or that the destination was
+    already up to date.
+
 ## Flags
 
 ### `-a`, `--apply`
