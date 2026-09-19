@@ -44,16 +44,59 @@ func (c *Config) newUpdateCmd() *cobra.Command {
 		),
 	}
 
-	updateCmd.Flags().BoolVarP(&c.Update.Apply, "apply", "a", c.Update.Apply, "Apply after pulling")
-	updateCmd.Flags().VarP(c.Update.filter.Exclude, "exclude", "x", "Exclude entry types")
-	updateCmd.Flags().VarP(c.Update.filter.Include, "include", "i", "Include entry types")
-	updateCmd.Flags().BoolVar(&c.Update.init, "init", c.Update.init, "Recreate config file from template")
-	updateCmd.Flags().BoolVarP(&c.Update.parentDirs, "parent-dirs", "P", c.Update.parentDirs, "Update all parent directories")
-	updateCmd.Flags().
-		BoolVar(&c.Update.RecurseSubmodules, "recurse-submodules", c.Update.RecurseSubmodules, "Recursively update submodules")
-	updateCmd.Flags().BoolVarP(&c.Update.recursive, "recursive", "r", c.Update.recursive, "Recurse into subdirectories")
+	c.registerUpdateFlags(updateCmd)
 
 	return updateCmd
+}
+
+// registerUpdateFlags registers the flags shared by update and preview so that
+// preview behaves as a genuine alias rather than a separate implementation.
+func (c *Config) registerUpdateFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&c.Update.Apply, "apply", "a", c.Update.Apply, "Apply after pulling")
+	cmd.Flags().VarP(c.Update.filter.Exclude, "exclude", "x", "Exclude entry types")
+	cmd.Flags().VarP(c.Update.filter.Include, "include", "i", "Include entry types")
+	cmd.Flags().BoolVar(&c.Update.init, "init", c.Update.init, "Recreate config file from template")
+	cmd.Flags().BoolVarP(&c.Update.parentDirs, "parent-dirs", "P", c.Update.parentDirs, "Update all parent directories")
+	cmd.Flags().
+		BoolVar(&c.Update.RecurseSubmodules, "recurse-submodules", c.Update.RecurseSubmodules, "Recursively update submodules")
+	cmd.Flags().BoolVarP(&c.Update.recursive, "recursive", "r", c.Update.recursive, "Recurse into subdirectories")
+}
+
+// newPreviewCmd returns a convenience alias for update --dry-run --verbose:
+// it fetches and renders the diff that update would apply. preview cannot use
+// cobra's Aliases field on updateCmd like other alias commands (list, manage,
+// podman, unmanage) as it needs its own Annotations, distinct from update's,
+// so that chezmoi's state-mode checks treat it as read-only.
+func (c *Config) newPreviewCmd() *cobra.Command {
+	previewCmd := &cobra.Command{
+		GroupID:           groupIDDaily,
+		Use:               "preview",
+		Short:             "Fetch and print the diff that update would apply",
+		Long:              mustLongHelp("preview"),
+		Example:           example("preview"),
+		Args:              cobra.NoArgs,
+		ValidArgsFunction: cobra.NoFileCompletions,
+		RunE:              c.runPreviewCmd,
+		Annotations: newAnnotations(
+			dryRun,
+			outputsDiff,
+			persistentStateModeReadMockWrite,
+			requiresSourceDirectory,
+			requiresWorkingTree,
+			runsCommands,
+		),
+	}
+
+	c.registerUpdateFlags(previewCmd)
+
+	return previewCmd
+}
+
+func (c *Config) runPreviewCmd(cmd *cobra.Command, args []string) error {
+	// Force dry run mode for updatePull's and printApplySummary's c.dryRun
+	// checks. The destination is already protected by this command's annotations.
+	c.dryRun = true
+	return c.runUpdateCmd(cmd, args)
 }
 
 func (c *Config) runUpdateCmd(cmd *cobra.Command, args []string) error {

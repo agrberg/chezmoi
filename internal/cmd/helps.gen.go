@@ -677,6 +677,34 @@ var helps = map[string]*help{
 		longHelp: "" +
 			"  podman is an alias for docker.",
 	},
+	"preview": {
+		longHelp: "" +
+			"  An alias for update --dry-run --verbose. Fetches from the remote and prints\n" +
+			"  the\n" +
+			"  diff that update would apply, without pulling and without modifying the\n" +
+			"  destination directory.\n" +
+			"\n" +
+			"  preview accepts the same flags as update, because it uses update's logic\n" +
+			"  directly with dry run mode forced on.",
+		example: "" +
+			"  chezmoi preview",
+		longFlags: chezmoiset.New(
+			"apply",
+			"exclude",
+			"include",
+			"init",
+			"parent-dirs",
+			"recurse-submodules",
+			"recursive",
+		),
+		shortFlags: chezmoiset.New(
+			"P",
+			"a",
+			"i",
+			"r",
+			"x",
+		),
+	},
 	"purge": {
 		longHelp: "" +
 			"  Remove chezmoi's configuration, state, and source directory, but leave the\n" +

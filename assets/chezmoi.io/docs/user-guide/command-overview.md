@@ -57,6 +57,9 @@ sequenceDiagram
   `chezmoi
   apply`.
 
+- [`chezmoi preview`](/reference/commands/preview.md) shows the diff that
+  `chezmoi update` would apply, without pulling or modifying your dotfiles.
+
 - [`chezmoi update`](/reference/commands/update.md) pulls the latest changes
   from your remote repo and runs `chezmoi apply`.
 
@@ -70,6 +73,7 @@ sequenceDiagram
     participant R as remote repo
     R->>W: chezmoi init $GITHUB_USERNAME
     R->>H: chezmoi init --apply $GITHUB_USERNAME
+    R-->>W: chezmoi preview
     R->>H: chezmoi update $GITHUB_USERNAME
     W->>L: git commit
     L->>R: git push
