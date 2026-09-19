@@ -92,14 +92,13 @@ func (c *Config) runUpdateCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.Update.Apply {
-		if err := c.applyArgs(cmd.Context(), c.destSystem, c.DestDirAbsPath, args, applyArgsOptions{
-			cmd:          cmd,
-			filter:       c.Update.filter,
-			init:         c.Update.init,
-			parentDirs:   c.Update.parentDirs,
-			recursive:    c.Update.recursive,
-			umask:        c.Umask,
-			preApplyFunc: c.defaultPreApplyFunc,
+		if err := c.applyArgsAndPrintSummary(cmd.Context(), args, applyArgsOptions{
+			cmd:        cmd,
+			filter:     c.Update.filter,
+			init:       c.Update.init,
+			parentDirs: c.Update.parentDirs,
+			recursive:  c.Update.recursive,
+			umask:      c.Umask,
 		}); err != nil {
 			return err
 		}
