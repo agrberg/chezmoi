@@ -55,16 +55,31 @@ exec chezmoi git -- add dot_file
 exec chezmoi git -- commit -m 'Update dot_file again'
 exec chezmoi git -- push
 
-# --dry-run moves the local branch but writes nothing. This relies on the
-# known behavior of #3811. When fixed, replace this step with
-# `exec chezmoi git -- pull --autostash --rebase` to move the branch without
-# applying.
+# --dry-run fetches and renders the incoming change without moving the local
+# branch. A dry run must not change state. See #3811 and #4703.
 chhome home2/user
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout head-before-dry-run
 exec chezmoi update --dry-run
 stderr '^chezmoi: would apply changes to 1 target$'
+! stderr 'warning'
 grep -count=1 '# edited' $HOME/.file
 
-# test a pull finding nothing still reports what the apply wrote. See #3811.
+# the local branch did not move
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout head-after-dry-run
+cmp head-before-dry-run head-after-dry-run
+
+# move the local branch for real so that part 2 exercises a pull that finds
+# nothing left to do
+exec chezmoi git -- pull --autostash --rebase
+
+# the local branch moved
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout head-after-pull
+! cmp head-before-dry-run head-after-pull
+
+# test that a pull finding nothing still reports what the apply wrote.
 exec chezmoi update
 stderr '^chezmoi: applied changes to 1 target$'
 grep -count=2 '# edited' $HOME/.file
@@ -125,6 +140,58 @@ grep -count=4 '# edited' $HOME/.file
 ! grep 'LOCAL_DIRTY_EDIT_2' $HOME/.file
 grep -count=1 'LOCAL_DIRTY_EDIT_2' $HOME/.file2
 
+chhome home3/user
+
+# test that --dry-run fails cleanly without an upstream branch
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec chezmoi git -- checkout -b nobranch
+! exec chezmoi update --dry-run
+stderr 'no upstream branch configured'
+
+chhome home4/user
+
+# test that --dry-run warns and skips the pull when update.command is set,
+# applies from the existing source state, and leaves the local branch untouched
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home4-head-before
+exec chezmoi update --dry-run
+stderr 'warning'
+stderr '^chezmoi: destination directory is up to date$'
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home4-head-after
+cmp home4-head-before home4-head-after
+
+chhome home5/user
+
+# test that --dry-run warns and skips the pull under builtin git
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home5-head-before
+exec chezmoi update --dry-run --use-builtin-git=true
+stderr 'warning'
+stderr '^chezmoi: destination directory is up to date$'
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home5-head-after
+cmp home5-head-before home5-head-after
+
+chhome home6/user
+
+# test that --dry-run --apply=false only fetches
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home6-head-before
+exec chezmoi update --dry-run --apply=false
+! stdout .
+! stderr .
+exec git -C $CHEZMOISOURCEDIR rev-parse HEAD
+cp stdout home6-head-after
+cmp home6-head-before home6-head-after
+
 -- golden/file2 --
 # contents of .file2
 -- golden/overwrite-quit --
@@ -135,3 +202,6 @@ skip
 -- golden/skip-skip --
 skip
 skip
+-- home4/user/.config/chezmoi/chezmoi.toml --
+[update]
+    command = "true"
