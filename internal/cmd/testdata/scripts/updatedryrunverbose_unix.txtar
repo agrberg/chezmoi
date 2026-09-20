@@ -1,0 +1,41 @@
+[windows] skip 'UNIX only'
+[!exec:git] skip 'git not found in $PATH'
+
+chmod 755 bin/custom-pager
+
+mkgitconfig
+mkhomedir
+
+exec git init --bare $WORK/dotfiles.git
+exec chezmoi init file://$WORK/dotfiles.git
+
+# create a commit in the author clone
+exec chezmoi add $HOME${/}.file
+exec chezmoi git add dot_file
+exec chezmoi git commit -- --message 'Add dot_file'
+exec chezmoi git push
+
+# set up the consumer clone
+chhome home2/user
+mkgitconfig
+exec chezmoi init --apply --force file://$WORK/dotfiles.git
+
+# push a new commit from the author clone
+chhome home/user
+edit $CHEZMOISOURCEDIR/dot_file
+exec chezmoi git -- add dot_file
+exec chezmoi git -- commit -m 'Update dot_file'
+exec chezmoi git -- push
+
+# test that chezmoi update --dry-run --verbose renders the diff through the
+# configured pager, exactly as diff and apply --dry-run --verbose do
+chhome home2/user
+exec chezmoi update --dry-run --verbose
+stdout custom-pager
+
+-- bin/custom-pager --
+#!/bin/sh
+
+echo custom-pager
+-- home2/user/.config/chezmoi/chezmoi.toml --
+pager = "custom-pager"

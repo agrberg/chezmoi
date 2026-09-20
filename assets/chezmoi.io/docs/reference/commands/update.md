@@ -13,6 +13,13 @@ If `update.command` is set then chezmoi will run `update.command` with
     many targets changed, how many were skipped, or that the destination was
     already up to date.
 
+    With `--dry-run`, chezmoi fetches from the remote and renders the changes
+    against the fetched tree instead of pulling. The local branch does not
+    move. Combine `--dry-run` with `--verbose` to see the full diff.
+
+    We cannot fetch without updating the working tree  with `update.command`
+    or `useBuiltinGit` so `--dry-run` skips and warns.
+
 ## Flags
 
 ### `-a`, `--apply`
